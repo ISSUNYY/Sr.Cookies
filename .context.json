@@ -1,0 +1,151 @@
+{
+  "project": {
+    "name": "PWA SR.COOKIES",
+    "type": "PWA E-Commerce (SPA)",
+    "goal": "Venda direta de cookies, substituindo iFood",
+    "repo": "https://github.com/ISSUNYY/Sr.Cookies",
+    "deploy": { "frontend": "Vercel", "backend": "Supabase" },
+    "domain": null
+  },
+
+  "stack": {
+    "core": {
+      "react": "19.x",
+      "typescript": "6.x",
+      "vite": "8.x",
+      "react-router": "v7",
+      "pwa": "vite-plugin-pwa 1.3 + Workbox"
+    },
+    "state": {
+      "client": "Zustand (cart, persist localStorage)",
+      "server": "TanStack React Query 5.x"
+    },
+    "backend": {
+      "auth": "Supabase Auth",
+      "database": "Supabase (PostgreSQL + RLS)",
+      "realtime": "Supabase Realtime",
+      "storage": "Supabase Storage (bucket: product-images)",
+      "serverless": "Supabase Edge Functions (Deno)"
+    },
+    "external": {
+      "payments": "Mercado Pago Checkout Pro",
+      "whatsapp": "Evolution API (Railway)",
+      "hosting": "Vercel (CDN, SSL)"
+    }
+  },
+
+  "structure": {
+    "frontend": {
+      "src/app/providers/AppProviders.tsx": "QueryClient + future Auth provider",
+      "src/app/routes/index.tsx": "React Router v7 with lazy loading",
+      "src/app/layouts/RootLayout.tsx": "Root layout with Outlet",
+      "src/main.tsx": "Entry point",
+      "src/App.tsx": "Root component (Providers + Router + Suspense)",
+      "src/index.css": "Global CSS reset + design tokens",
+      "src/features/auth/types/": "User, Session types",
+      "src/features/catalog/types/": "Product, Category, ProductImage types",
+      "src/features/catalog/pages/HomePage.tsx": "Landing page (placeholder)",
+      "src/features/cart/types/": "CartItem, Cart types",
+      "src/features/checkout/types/": "Order, OrderItem, Address, PaymentIntent types",
+      "src/features/orders/types/": "Order, OrderItem, OrderStatus types",
+      "src/features/admin/": "Admin module (Sprint 8)",
+      "src/shared/components/": "Button, Modal, Input, Spinner, Toast",
+      "src/shared/hooks/": "useDebounce, usePagination, useLocalStorage",
+      "src/shared/lib/supabase.ts": "Supabase client (single instance)",
+      "src/shared/lib/queryClient.ts": "React Query global config",
+      "src/shared/utils/format.ts": "formatCurrency, formatDate, cn, slugify",
+      "src/types/env.d.ts": "import.meta.env typings"
+    },
+    "backend": {
+      "supabase/functions/create-payment/index.ts": "Creates MP preference",
+      "supabase/functions/payment-webhook/index.ts": "Validates HMAC, processes payment",
+      "supabase/functions/send-whatsapp/index.ts": "Evolution API notification"
+    },
+    "migrations": {
+      "0001_schema.sql": "All tables",
+      "0002_rls_policies.sql": "Granular RLS",
+      "0003_triggers.sql": "updated_at trigger",
+      "0004_process_payment_fn.sql": "Atomic payment processing",
+      "0005_create_order_fn.sql": "Order + stock lock",
+      "0006_storage_buckets.sql": "product-images bucket"
+    }
+  },
+
+  "database": {
+    "tables": {
+      "profiles": { "pk": "uuid", "rls": "user own only" },
+      "products": { "pk": "uuid", "rls": "public read, service_role write" },
+      "categories": { "pk": "uuid", "rls": "public read, service_role write" },
+      "product_images": { "pk": "uuid", "rls": "public read, service_role write" },
+      "orders": { "pk": "uuid", "rls": "user own only" },
+      "order_items": { "pk": "uuid", "rls": "via order" },
+      "payments": { "pk": "uuid", "rls": "user SELECT, service_role write" },
+      "addresses": { "pk": "uuid", "rls": "user CRUD own" }
+    },
+    "functions": {
+      "handle_updated_at": "TRIGGER: auto-update updated_at",
+      "create_order_with_stock_check": "SECURITY DEFINER: atomic order + FOR UPDATE lock",
+      "process_approved_payment": "SECURITY DEFINER: idempotent via processed_at"
+    }
+  },
+
+  "env": {
+    "public_vite": ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"],
+    "secrets_supabase": ["SUPABASE_SERVICE_ROLE_KEY", "MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET", "EVOLUTION_API_URL", "EVOLUTION_API_KEY", "WHATSAPP_INSTANCE", "WHATSAPP_STORE_NUMBER"]
+  },
+
+  "naming": {
+    "components": "PascalCase.tsx",
+    "hooks": "camelCase with use",
+    "services": "camelCase with Service",
+    "types": "PascalCase",
+    "constants": "SCREAMING_SNAKE_CASE",
+    "edge_functions": "kebab-case",
+    "tables": "snake_case plural",
+    "env_public": "VITE_ prefix"
+  },
+
+  "rules": {
+    "no_emojis_in_code": true,
+    "code_language": "english",
+    "docs_language": "pt-BR",
+    "max_function_lines": 20,
+    "no_magic_numbers": true,
+    "no_empty_catch": true,
+    "commits": "conventional (feat, fix, refactor, security, test, chore, docs)"
+  },
+
+  "import_rules": {
+    "allowed": ["shared -> any feature", "feature -> shared"],
+    "forbidden": ["feature -> another feature", "shared -> any feature"]
+  },
+
+  "invariants": [
+    "RLS on ALL tables",
+    "Features never import from features",
+    "Prices NEVER trusted from client",
+    "Webhooks validated (HMAC) before processing",
+    "Idempotent payment processing",
+    "Stock protected by FOR UPDATE lock",
+    "Secrets never in code",
+    "UUID for all PKs",
+    "Fail-closed on errors",
+    "Notification errors never block orders"
+  ],
+
+  "sprint_status": {
+    "1_setup": "DONE",
+    "2_auth": "TODO",
+    "3_catalog": "TODO",
+    "4_cart": "TODO",
+    "5_checkout": "TODO",
+    "6_orders": "TODO",
+    "7_whatsapp": "TODO",
+    "8_admin": "TODO",
+    "9_polish": "TODO"
+  },
+
+  "changelog": [
+    { "date": "2025-05-07", "type": "CREATE", "desc": "Sprint 1: Vite+React+TS scaffold, PWA config, DDD folder structure, path aliases, security headers, CI/CD, pushed to GitHub" }
+  ]
+}
