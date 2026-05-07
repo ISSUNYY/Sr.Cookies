@@ -7,21 +7,23 @@
 }
 
 :root {
-  --color-bg: #0f0f0f;
-  --color-surface: #1a1a2e;
-  --color-primary: #e2b87e;
-  --color-primary-hover: #d4a56a;
-  --color-text: #f0f0f0;
-  --color-text-muted: #a0a0a0;
-  --color-border: #2a2a3e;
+  --color-bg: #F2EDE5;
+  --color-surface: #ffffff;
+  --color-primary: #AD7F60;
+  --color-primary-hover: #8C6246;
+  --color-secondary: #E5BD96;
+  --color-text: #3F2D24;
+  --color-text-muted: #8c786c;
+  --color-border: #e6dacb;
+  --color-cookie-dark: #41322A;
   --color-success: #4caf50;
   --color-error: #ef5350;
   --color-warning: #ff9800;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 2px 8px rgba(63, 45, 36, 0.08);
+  --shadow-md: 0 8px 24px rgba(63, 45, 36, 0.12);
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Outfit', system-ui, sans-serif;
 }
