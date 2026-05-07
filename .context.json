@@ -138,7 +138,7 @@
   "sprint_status": {
     "1_setup": "DONE",
     "2_auth": "DONE",
-    "3_catalog": "TODO",
+    "3_catalog": "DONE",
     "4_cart": "TODO",
     "5_checkout": "TODO",
     "6_orders": "TODO",
@@ -150,6 +150,7 @@
   "changelog": [
     { "date": "2026-05-07", "type": "CREATE", "desc": "Sprint 1: Vite+React+TS scaffold, PWA config, DDD folder structure, path aliases, security headers, CI/CD, pushed to GitHub" },
     { "date": "2026-05-07", "type": "CREATE", "desc": "Supabase project created (agwotvaaiqxrccxrajbq sa-east-1). 8 migrations applied: schema, RLS, triggers, payment fn, order fn, storage bucket, 2x security hardening. Linter clean (1 intentional WARN)." },
-    { "date": "2026-05-07", "type": "UPDATE", "desc": "Sprint 2: Auth complete. CSS premium theme (colors from ref image), AuthProvider, ProtectedRoute, AuthLayout (split-screen), Login & Signup pages wired to Supabase." }
+    { "date": "2026-05-07", "type": "UPDATE", "desc": "Sprint 2: Auth complete. CSS premium theme (colors from ref image), AuthProvider, ProtectedRoute, AuthLayout (split-screen), Login & Signup pages wired to Supabase." },
+    { "date": "2026-05-07", "type": "CREATE", "desc": "Sprint 3: Catalog complete. Built HomePage with mobile-first grid, copied images to public/, premium styling for ProductCards, global RootLayout header." }
   ]
 }
