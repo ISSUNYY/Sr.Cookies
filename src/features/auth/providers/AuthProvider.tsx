@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
@@ -7,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { supabase } from '@shared/lib/supabase';
-import type { AuthState, Profile, SupabaseUser, SupabaseSession } from '../types';
+import type { AuthState, SupabaseUser, SupabaseSession } from '../types';
 import { fetchProfile } from '../services/authService';
 
 interface AuthContextValue extends AuthState {

@@ -37,3 +37,7 @@ yarn-error.log*
 
 # Supabase local
 .supabase/
+
+# Scratch and local utility scripts
+scratch/
+*.mjs

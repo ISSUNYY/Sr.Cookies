@@ -6,7 +6,7 @@ export default function AuthLayout() {
     <div className="auth-container">
       <div className="auth-left">
         <div className="auth-brand">
-          <img src="/Logo.png" alt="Sr. Cookies" className="auth-logo" />
+          <img src="/images/Logo.png" alt="Sr. Cookies" className="auth-logo" />
         </div>
         <div className="auth-content">
           <Outlet />
