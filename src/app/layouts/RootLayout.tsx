@@ -3,12 +3,12 @@ import { Outlet, Link, useNavigate } from 'react-router';
 import { useCartStore } from '@/features/catalog/stores/useCartStore';
 import { simulateMpWebhookNotification } from '@/features/orders/services/mpService';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
-import { signOut } from '@/features/auth/services/authService';
+import { signOut, updateProfile } from '@/features/auth/services/authService';
 import './layout.css';
 
 export default function RootLayout() {
   const navigate = useNavigate();
-  const { isAuthenticated, profile, user } = useAuth();
+  const { isAuthenticated, profile, refreshProfile, user, isLoading } = useAuth();
   const items = useCartStore(state => state.items);
   const cartItemsCount = items.reduce((total, item) => total + item.quantity, 0);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
@@ -16,6 +16,53 @@ export default function RootLayout() {
   // Header scrolled state & User menu toggle state
   const [isScrolled, setIsScrolled] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // Phone Barrier State for Google Sign-in users missing phone number
+  const [barrierPhone, setBarrierPhone] = useState('');
+  const [barrierError, setBarrierError] = useState<string | null>(null);
+  const [barrierSaving, setBarrierSaving] = useState(false);
+
+  // Simple mask for cell phone format (XX) XXXXX-XXXX
+  const handleBarrierPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    
+    if (value.length > 7) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+    setBarrierPhone(value);
+  };
+
+  const handleBarrierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanPhone = barrierPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setBarrierError('Por favor, insira um celular válido.');
+      return;
+    }
+
+    setBarrierSaving(true);
+    setBarrierError(null);
+
+    try {
+      if (user) {
+        await updateProfile(user.id, { phone: barrierPhone });
+        if (refreshProfile) {
+          await refreshProfile();
+        }
+      }
+    } catch (err) {
+      setBarrierError(err instanceof Error ? err.message : 'Falha ao salvar. Tente novamente.');
+    } finally {
+      setBarrierSaving(false);
+    }
+  };
+
+  const showPhoneBarrier = !isLoading && isAuthenticated && profile && !profile.phone;
 
   const handleLogout = async () => {
     try {
@@ -185,6 +232,35 @@ export default function RootLayout() {
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {showPhoneBarrier && (
+        <div className="phone-barrier-overlay">
+          <div className="phone-barrier-card">
+            <h2>Só mais um detalhe</h2>
+            <p>Insira seu WhatsApp para receber as atualizações de rastreamento do seu pedido.</p>
+            
+            <form onSubmit={handleBarrierSubmit} className="phone-barrier-form">
+              {barrierError && <div className="barrier-error">{barrierError}</div>}
+              
+              <div className="form-group">
+                <input
+                  required
+                  type="text"
+                  placeholder="(XX) XXXXX-XXXX"
+                  value={barrierPhone}
+                  onChange={handleBarrierPhoneChange}
+                  className="form-input"
+                  style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={barrierSaving}>
+                {barrierSaving ? <div className="ifood-loader-spinner"></div> : 'Salvar e Continuar'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

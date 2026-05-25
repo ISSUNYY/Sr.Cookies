@@ -334,3 +334,66 @@ main {
 .user-menu-item.logout:hover svg {
   color: #c0392b;
 }
+
+/* Phone Verification Barrier Modal */
+.phone-barrier-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(65, 50, 42, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  animation: fade-in 0.3s ease-out;
+}
+
+.phone-barrier-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(65, 50, 42, 0.15);
+  animation: scale-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.phone-barrier-card h2 {
+  font-family: var(--font-display);
+  color: var(--color-cookie-dark);
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.phone-barrier-card p {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+}
+
+.phone-barrier-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.barrier-error {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid #fee2e2;
+  font-weight: 500;
+  text-align: center;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
