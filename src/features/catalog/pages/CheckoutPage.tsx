@@ -7,10 +7,8 @@ import {
   createMpPreference, 
   simulateMpWebhookNotification 
 } from '@/features/orders/services/mpService';
-import { 
-  getStoreSettings, 
-  type StoreSettings 
-} from '@/features/admin/services/settingsService';
+import { getStoreSettings, type StoreSettings } from '@/features/admin/services/settingsService';
+import { updateProfile } from '@/features/auth/services/authService';
 import '../styles/checkout.css';
 import '../styles/cart.css';
 
@@ -19,7 +17,7 @@ type PaymentMethod = 'applepay' | 'googlepay' | 'pix' | 'credito_app' | 'dinheir
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { user, profile, isLoading, isAuthenticated } = useAuth();
+  const { user, profile, refreshProfile, isLoading, isAuthenticated } = useAuth();
   const { items, getTotal, clearCart } = useCartStore();
 
   // Redirect guest users to login page automatically with checkout destination stored
@@ -60,7 +58,21 @@ export default function CheckoutPage() {
     return '';
   };
 
-
+  // Simple mask for cell phone format (XX) XXXXX-XXXX
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    
+    // Apply formatting mask
+    if (value.length > 7) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+    setPhone(value);
+  };
 
   useEffect(() => {
     if (profile?.phone) {
@@ -286,6 +298,18 @@ export default function CheckoutPage() {
     try {
       if (!user) {
         throw new Error('Você precisa estar logado para finalizar a compra.');
+      }
+
+      // Se o usuário não tinha celular salvo no perfil (login Google), salva agora!
+      if (user && !profile?.phone && phone) {
+        try {
+          await updateProfile(user.id, { phone });
+          if (refreshProfile) {
+            await refreshProfile();
+          }
+        } catch (profileUpdateErr) {
+          console.warn('[CheckoutPage] Falha ao atualizar telefone do perfil:', profileUpdateErr);
+        }
       }
 
       // Build rich metadata for delivery_address/shipping_address JSONB column
@@ -575,6 +599,19 @@ export default function CheckoutPage() {
                   onChange={e => setAddress({...address, zipCode: e.target.value})} 
                 />
               </div>
+
+              {!profile?.phone && (
+                <div className="ifood-input-group full-width">
+                  <label>Celular (WhatsApp) - Necessário para acompanhar a entrega</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="(XX) XXXXX-XXXX" 
+                    value={phone} 
+                    onChange={handlePhoneChange} 
+                  />
+                </div>
+              )}
 
               <div className="ifood-input-group full-width">
                 <label>Complemento / Ponto de Referência</label>

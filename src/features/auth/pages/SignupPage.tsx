@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { signUp, signInWithGoogle } from '../services/authService';
 
 export default function SignupPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -35,8 +36,7 @@ export default function SignupPage() {
     setSuccessMessage(null);
 
     try {
-      const fallbackName = email.split('@')[0] || 'Cliente';
-      const { needsConfirmation } = await signUp({ email, password, name: fallbackName, phone });
+      const { needsConfirmation } = await signUp({ email, password, name, phone });
       
       if (needsConfirmation) {
         setSuccessMessage('Conta criada com sucesso! Por favor, confirme a ativação no link enviado para o seu e-mail.');
@@ -89,6 +89,20 @@ export default function SignupPage() {
 
       <form className="auth-form" onSubmit={handleSubmit}>
         {error && <div className="auth-error">{error}</div>}
+
+        <div className="form-group">
+          <label htmlFor="name">Nome Completo</label>
+          <input
+            id="name"
+            type="text"
+            className="form-input"
+            placeholder="Seu nome completo"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
+        </div>
 
         <div className="form-group">
           <label htmlFor="email">E-mail</label>
