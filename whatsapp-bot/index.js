@@ -47,7 +47,8 @@ async function connectToWhatsApp() {
   const authDir = './auth_info_baileys';
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
-  const sock = makeWASocket.default({
+  const createSocket = makeWASocket.default || makeWASocket;
+  const sock = createSocket({
     auth: state,
     printQRInTerminal: false // We will handle printing manually for maximum control
   });
