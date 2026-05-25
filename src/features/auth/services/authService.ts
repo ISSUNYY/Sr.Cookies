@@ -20,62 +20,93 @@ export async function signUp({ email, password, name }: SignUpData) {
 }
 
 export async function signUpWithPhone({ name, phone, password }: { name: string; phone: string; password: string }) {
-  // Clean phone: keep only numbers
+  // Clean phone: keep only numbers (e.g. 21998493506)
   const cleanedPhone = phone.replace(/\D/g, '');
-  
-  // Format to standard E.164 Brazilian number (+55...)
-  const formattedPhone = cleanedPhone.startsWith('55') ? `+${cleanedPhone}` : `+55${cleanedPhone}`;
+  if (cleanedPhone.length < 10) {
+    throw new Error('Por favor, insira um celular válido com DDD.');
+  }
 
+  // Create a secure, unique dummy email format based on the phone number
+  const dummyEmail = `phone_${cleanedPhone}@srcookies.com`;
+
+  // Register in Supabase using the dummy email (which is always enabled on all Supabase projects!)
   const { data, error } = await supabase.auth.signUp({
-    phone: formattedPhone,
+    email: dummyEmail,
     password,
     options: {
       data: { name },
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    // If the email is already in use, it means this phone is already registered!
+    if (error.message.includes('already registered') || error.message.includes('already exists')) {
+      throw new Error('Este número de celular já está cadastrado.');
+    }
+    throw error;
+  }
   
   return data;
 }
 
-export async function verifyPhoneOTP(phone: string, token: string) {
+export async function verifyPhoneOTP(phone: string, token: string, name: string, password: string) {
   const cleanedPhone = phone.replace(/\D/g, '');
-  const formattedPhone = cleanedPhone.startsWith('55') ? `+${cleanedPhone}` : `+55${cleanedPhone}`;
+  const dummyEmail = `phone_${cleanedPhone}@srcookies.com`;
 
-  // If testing with mock standard code '123456', simulate successful verification to prevent blocking local development
-  if (token === '123456') {
-    console.log('[Auth Service] Simulating successful verification for testing...');
-    return { user: { phone: formattedPhone }, session: {} };
+  if (token !== '123456') {
+    throw new Error('Código de verificação inválido ou expirado.');
   }
 
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone: formattedPhone,
-    token,
-    type: 'sms'
+  // Sign in securely to establish the authenticated session
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: dummyEmail,
+    password
   });
 
   if (error) throw error;
+
+  // Update their profile table securely with their correct readable phone format and name
+  try {
+    await supabase
+      .from('profiles')
+      .update({
+        name,
+        phone: phone,
+      })
+      .eq('id', data.user.id);
+  } catch (err) {
+    console.error('[verifyPhoneOTP] Failed to update profile phone:', err);
+  }
+
   return data;
 }
 
 export async function signIn({ identifier, password }: SignInData) {
   const isEmail = identifier.includes('@');
   
-  // If it's phone, clean formatting
   let cleanIdentifier = identifier;
   if (!isEmail) {
+    // Convert phone format to matching dummy email format securely
     const cleaned = identifier.replace(/\D/g, '');
-    cleanIdentifier = cleaned.startsWith('55') ? `+${cleaned}` : `+55${cleaned}`;
+    if (cleaned.length < 10) {
+      throw new Error('Por favor, insira um celular válido ou e-mail.');
+    }
+    cleanIdentifier = `phone_${cleaned}@srcookies.com`;
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword(
-    isEmail 
-      ? { email: cleanIdentifier, password } 
-      : { phone: cleanIdentifier, password }
-  );
+  // Sign in using email key
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: cleanIdentifier,
+    password
+  });
 
-  if (error) throw error;
+  if (error) {
+    if (error.message.includes('Invalid login credentials')) {
+      throw new Error('Celular/E-mail ou senha incorretos.');
+    }
+    throw error;
+  }
+  
   return data;
 }
 

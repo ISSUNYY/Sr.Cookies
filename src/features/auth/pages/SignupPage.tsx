@@ -56,12 +56,12 @@ export default function SignupPage() {
     setOtpError(null);
 
     try {
-      await verifyPhoneOTP(phone, otpCode);
-      setSuccessMessage('🎉 Celular verificado e conta ativada com sucesso! Redirecionando para o login...');
+      await verifyPhoneOTP(phone, otpCode, name, password);
+      setSuccessMessage('🎉 Celular verificado e conta ativada! Você está conectado(a) com sucesso.');
       setShowOtpScreen(false);
       setTimeout(() => {
-        navigate('/auth/login');
-      }, 2500);
+        navigate('/', { replace: true });
+      }, 1500);
     } catch (err) {
       setOtpError(err instanceof Error ? err.message : 'Código incorreto. Verifique e tente novamente.');
     } finally {
