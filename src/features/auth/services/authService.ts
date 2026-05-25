@@ -44,7 +44,6 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
 
   // Sincronizar o telefone e o e-mail real na tabela de perfis públicos
   if (data.user) {
-    const phoneCode = Math.floor(1000 + Math.random() * 9000).toString();
     try {
       const { error: updateError } = await supabase
         .from('profiles')
@@ -52,8 +51,8 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
           name,
           phone: phone || null,
           email: email || null,
-          phone_verified: false,
-          phone_verification_code: phoneCode,
+          phone_verified: true,
+          phone_verification_code: null,
         })
         .eq('id', data.user.id);
         
@@ -66,8 +65,8 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
             name,
             phone: phone || null,
             email: email || null,
-            phone_verified: false,
-            phone_verification_code: phoneCode,
+            phone_verified: true,
+            phone_verification_code: null,
           });
       }
     } catch (err) {
@@ -323,20 +322,17 @@ export async function updateProfile(
           throw new Error('Este número de celular já está cadastrado em outra conta.');
         }
 
-        // Se o update não estiver explicitamente aprovando, gera código de verificação
-        if (updates.phone_verified !== true) {
-          const phoneCode = Math.floor(1000 + Math.random() * 9000).toString();
-          finalUpdates = {
-            ...finalUpdates,
-            phone_verified: false,
-            phone_verification_code: phoneCode
-          };
-        }
+        // Sempre marca como verificado e sem código ao atualizar telefone
+        finalUpdates = {
+          ...finalUpdates,
+          phone_verified: true,
+          phone_verification_code: null
+        };
       }
     } else {
       finalUpdates = {
         ...finalUpdates,
-        phone_verified: false,
+        phone_verified: true,
         phone_verification_code: null
       };
     }

@@ -424,13 +424,7 @@ export default function CheckoutPage() {
   if (showSuccessScreen && createdOrderDetails) {
     const cleanPhone = createdOrderDetails.phone;
     const orderId = createdOrderDetails.id;
-    const trackingUrl = `${window.location.origin}/track/${orderId}`;
     
-    // Clean and professional message - no emojis!
-    const rawMessage = `Sr. Cookies\n\nSeu pedido foi confirmado e ja esta sendo preparado!\n\nAcompanhe a entrega em tempo real pelo link abaixo:\n${trackingUrl}\n\nObrigado pela sua preferencia!`;
-    const whatsappMessage = encodeURIComponent(rawMessage);
-    const whatsappLink = `https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${whatsappMessage}`;
-
     return (
       <div className="checkout-page success-screen-container">
         <div className="success-card-premium">
@@ -452,36 +446,23 @@ export default function CheckoutPage() {
               <span className="detail-value">#{orderId.slice(0, 8).toUpperCase()}</span>
             </div>
             <div className="success-detail-row">
-              <span className="detail-label">WhatsApp de Contato</span>
+              <span className="detail-label">Telefone de Contato</span>
               <span className="detail-value">({cleanPhone.slice(0, 2)}) {cleanPhone.slice(2, 7)}-{cleanPhone.slice(7)}</span>
             </div>
           </div>
 
           <div className="success-actions-container">
-            <a 
-              href={whatsappLink} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="btn-success-whatsapp"
-              onClick={() => {
-                // Navigate to tracking after opening WhatsApp in a new tab
-                setTimeout(() => {
-                  navigate(`/track/${orderId}`);
-                }, 1500);
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-              <span>Ativar Rastreamento no WhatsApp</span>
-            </a>
-
             <button 
               type="button" 
               className="btn-success-track" 
+              style={{ width: '100%', padding: '1rem', fontSize: '1.05rem', fontWeight: 'bold' }}
               onClick={() => navigate(`/track/${orderId}`)}
             >
-              <span>Acompanhar sem WhatsApp</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', display: 'inline-block', verticalAlign: 'middle' }}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span style={{ verticalAlign: 'middle' }}>Acompanhar Pedido 🍪</span>
             </button>
           </div>
         </div>

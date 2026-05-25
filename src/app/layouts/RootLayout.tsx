@@ -4,8 +4,6 @@ import { useCartStore } from '@/features/catalog/stores/useCartStore';
 import { simulateMpWebhookNotification } from '@/features/orders/services/mpService';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { signOut, updateProfile } from '@/features/auth/services/authService';
-import { supabase } from '@shared/lib/supabase';
-import type { Profile } from '@/features/auth/types';
 import './layout.css';
 
 export default function RootLayout() {
@@ -24,9 +22,7 @@ export default function RootLayout() {
   const [barrierError, setBarrierError] = useState<string | null>(null);
   const [barrierSaving, setBarrierSaving] = useState(false);
 
-  // Phone Verification State
-  const [verifying, setVerifying] = useState(false);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
+
 
   // Simple mask for cell phone format (XX) XXXXX-XXXX
   const handleBarrierPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,36 +65,6 @@ export default function RootLayout() {
   };
 
   const showPhoneBarrier = !isLoading && isAuthenticated && profile && !profile.phone;
-  const showPhoneVerification = !isLoading && isAuthenticated && profile && profile.phone && !profile.phone_verified;
-
-  const handleResetPhone = async () => {
-    if (!user) return;
-    setVerificationError(null);
-    try {
-      await updateProfile(user.id, { phone: null });
-      if (refreshProfile) {
-        await refreshProfile();
-      }
-    } catch {
-      setVerificationError('Erro ao reiniciar cadastro de celular. Tente novamente.');
-    }
-  };
-
-  const handleSimulateVerification = async () => {
-    if (!user) return;
-    setVerifying(true);
-    setVerificationError(null);
-    try {
-      await updateProfile(user.id, { phone_verified: true });
-      if (refreshProfile) {
-        await refreshProfile();
-      }
-    } catch {
-      setVerificationError('Falha ao simular validação.');
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -109,35 +75,7 @@ export default function RootLayout() {
     }
   };
 
-  // Realtime subscription to detect phone verification changes
-  useEffect(() => {
-    if (!user || !isAuthenticated) return;
 
-    const channel = supabase
-      .channel('profile-verification-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        async (payload) => {
-          const newProfile = payload.new as Profile;
-          if (newProfile && newProfile.phone_verified) {
-            if (refreshProfile) {
-              await refreshProfile();
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, isAuthenticated, refreshProfile]);
 
   // Scroll listener for sticky header
   useEffect(() => {
@@ -330,61 +268,6 @@ export default function RootLayout() {
         </div>
       )}
 
-      {showPhoneVerification && (
-        <div className="phone-barrier-overlay">
-          <div className="phone-barrier-card">
-            <h2>Valide seu WhatsApp</h2>
-            <p>
-              Cadastramos seu celular: <strong style={{ color: 'var(--color-cookie-dark)' }}>{profile?.phone}</strong>.<br />
-              Para sua segurança e envio automático do rastreamento, valide o número abaixo.
-            </p>
-
-            {verificationError && <div className="barrier-error" style={{ marginBottom: '1rem' }}>{verificationError}</div>}
-
-            <div className="phone-verification-code-display">
-              #{profile?.phone_verification_code}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', marginTop: '0.5rem' }}>
-              <a
-                href={`https://wa.me/5521999999999?text=${encodeURIComponent(`Olá! Quero confirmar meu cadastro no Sr. Cookies. Código: #COOKIE-${profile?.phone_verification_code}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="whatsapp-btn-primary"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" style={{ fill: 'currentColor' }}>
-                  <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.333 4.993L2 22l5.197-1.355a9.96 9.96 0 004.815 1.228h.005c5.507 0 9.99-4.478 9.99-9.985 0-2.667-1.037-5.176-2.922-7.062A9.919 9.919 0 0012.012 2zm5.727 14.195c-.25.7-.72 1.25-1.33 1.57-.52.27-1.2.43-2.98-.3-2.31-.95-3.81-3.3-3.92-3.46-.12-.15-.95-1.26-.95-2.4 0-1.14.6-1.7 1.05-1.92.17-.08.38-.13.56-.13h.36c.12 0 .27.02.4.31.15.35.53 1.28.57 1.38.05.1.08.22.01.36-.07.14-.15.22-.25.34-.1.12-.2.24-.31.37-.12.13-.25.28-.1.54.14.26.65 1.08 1.4 1.75.96.86 1.77 1.13 2.02 1.26.25.12.39.1.54-.07.15-.17.65-.76.82-1.02.17-.26.34-.22.58-.13.23.09 1.5.71 1.76.84.26.13.43.2.49.3.07.1.07.6-.18 1.3z" />
-                </svg>
-                Confirmar no WhatsApp
-              </a>
-
-              <div className="verification-status-pulsing">
-                <span></span>
-                Aguardando mensagem no WhatsApp...
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
-                <button
-                  onClick={handleResetPhone}
-                  className="verification-link-secondary"
-                  disabled={verifying}
-                >
-                  Alterar celular digitado
-                </button>
-
-                <button
-                  onClick={handleSimulateVerification}
-                  className="dev-bypass-btn"
-                  disabled={verifying}
-                  title="Apenas para testes em desenvolvimento local"
-                >
-                  {verifying ? 'Validando...' : '⚙️ Simular Validação (Desenvolvedor)'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
