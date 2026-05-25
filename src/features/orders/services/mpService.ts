@@ -4,6 +4,7 @@ export interface MpPreferenceResponse {
   id: string;
   init_point: string;
   sandbox_init_point: string;
+  isSandboxSimulated?: boolean;
 }
 
 export interface MpPixResponse {
@@ -50,7 +51,8 @@ export const createMpPreference = async (
   return {
     id: preferenceId,
     init_point: `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`,
-    sandbox_init_point: `https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`
+    sandbox_init_point: `https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`,
+    isSandboxSimulated: true
   };
 };
 

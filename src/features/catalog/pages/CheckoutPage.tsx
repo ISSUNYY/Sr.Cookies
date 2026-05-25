@@ -312,9 +312,25 @@ export default function CheckoutPage() {
         setIsWaitingMpPayment(true);
         setIsProcessing(false);
 
-        // ALWAYS redirect in the same tab to prevent pop-up blocker issues on both desktop and mobile
-        // This also avoids strict browser restrictions (CORS/CSP) on newly opened async windows
-        window.location.href = redirectUrl;
+        if (preference.isSandboxSimulated) {
+          // Opção B: Offline Payment Simulator
+          // Automatically simulates the payment as approved on Supabase, clears cart, and redirects to tracking
+          // after 2.5 seconds, avoiding any 404 page errors when the SDK backend server is not active.
+          setTimeout(async () => {
+            try {
+              const paymentId = Math.floor(1000000000 + Math.random() * 900000000);
+              await simulateMpWebhookNotification(order.id, paymentId, 'approved');
+              clearCart();
+              navigate(`/track/${order.id}`);
+            } catch (err) {
+              console.error('Failed to simulate offline payment redirect:', err);
+            }
+          }, 2500);
+        } else {
+          // ALWAYS redirect in the same tab to prevent pop-up blocker issues on both desktop and mobile
+          // This also avoids strict browser restrictions (CORS/CSP) on newly opened async windows
+          window.location.href = redirectUrl;
+        }
       }
 
     } catch (err) {
