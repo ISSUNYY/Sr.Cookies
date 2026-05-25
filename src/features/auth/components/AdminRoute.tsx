@@ -2,7 +2,7 @@ import { Navigate, useLocation, Outlet } from 'react-router';
 import { useAuth } from '../providers/AuthProvider';
 
 export function AdminRoute() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, profile } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -17,16 +17,17 @@ export function AdminRoute() {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Basic admin check based on VITE_ADMIN_EMAILS env var
+  // Admin permission check:
+  // 1. Primary: check if profile role is 'admin'
+  // 2. Secondary/Fallback: check if user email is explicitly whitelisted in VITE_ADMIN_EMAILS
   const adminEmailsString = import.meta.env.VITE_ADMIN_EMAILS || '';
   const adminEmails = adminEmailsString
     .split(',')
     .map((email: string) => email.trim().toLowerCase())
     .filter(Boolean);
   
-  // Since this is a private project, if VITE_ADMIN_EMAILS is not set, we allow the authenticated user.
-  // Otherwise, we strictly check against the list.
-  const isAdmin = adminEmails.length === 0 || (user?.email && adminEmails.includes(user.email.toLowerCase()));
+  const isAdmin = profile?.role === 'admin' || 
+    (adminEmails.length > 0 && user?.email && adminEmails.includes(user.email.toLowerCase()));
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
