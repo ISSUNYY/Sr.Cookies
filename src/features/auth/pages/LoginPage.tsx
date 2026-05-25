@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { signIn, signInWithGoogle } from '../services/authService';
+import { supabase } from '@shared/lib/supabase';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/admin';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +18,22 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await signIn({ email, password });
-      navigate(from, { replace: true });
+      const data = await signIn({ identifier, password });
+      
+      // Fetch user profile role securely to redirect non-admins back to the main homepage
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+        
+      const isAdmin = profile?.role === 'admin';
+      
+      if (isAdmin) {
+        navigate(location.state?.from?.pathname || '/admin', { replace: true });
+      } else {
+        navigate(location.state?.from?.pathname || '/', { replace: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao fazer login. Verifique suas credenciais.');
     } finally {
@@ -49,16 +63,16 @@ export default function LoginPage() {
         {error && <div className="auth-error">{error}</div>}
 
         <div className="form-group">
-          <label htmlFor="email">E-mail</label>
+          <label htmlFor="identifier">Celular ou E-mail</label>
           <input
-            id="email"
-            type="email"
+            id="identifier"
+            type="text"
             className="form-input"
-            placeholder="seu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Ex: (22) 99999-9999 ou seu@email.com"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
-            autoComplete="email"
+            autoComplete="username"
           />
         </div>
 

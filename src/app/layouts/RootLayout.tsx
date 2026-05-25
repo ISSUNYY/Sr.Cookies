@@ -2,13 +2,25 @@ import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router';
 import { useCartStore } from '@/features/catalog/stores/useCartStore';
 import { simulateMpWebhookNotification } from '@/features/orders/services/mpService';
+import { useAuth } from '@/features/auth/providers/AuthProvider';
+import { signOut } from '@/features/auth/services/authService';
 import './layout.css';
 
 export default function RootLayout() {
   const navigate = useNavigate();
+  const { isAuthenticated, profile, user } = useAuth();
   const items = useCartStore(state => state.items);
   const cartItemsCount = items.reduce((total, item) => total + item.quantity, 0);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (err) {
+      console.error('[RootLayout] Error signing out:', err);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -51,8 +63,58 @@ export default function RootLayout() {
             <img src="/images/Logo.png" alt="Sr. Cookies" />
           </Link>
           
-          <div className="header-actions">
-            <Link to="/auth/login" className="login-link">Entrar</Link>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            {isAuthenticated ? (
+              <div className="user-profile-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="welcome-text" style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                  Olá, <strong style={{ color: 'var(--color-text)' }}>{profile?.name || user?.user_metadata?.name || 'Cliente'}</strong>
+                </span>
+                
+                {profile?.role === 'admin' && (
+                  <Link 
+                    to="/admin" 
+                    className="admin-badge-nav" 
+                    style={{
+                      background: 'rgba(173, 127, 96, 0.1)',
+                      border: '1px solid rgba(173, 127, 96, 0.3)',
+                      color: 'var(--color-primary)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      textDecoration: 'none',
+                      transition: 'background-color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.18)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.1)'}
+                  >
+                    Painel Admin 👑
+                  </Link>
+                )}
+
+                <button 
+                  onClick={handleLogout} 
+                  className="logout-button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#e74c3c',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: '0.25rem 0.5rem',
+                    transition: 'opacity 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <Link to="/auth/login" className="login-link">Entrar</Link>
+            )}
+
             <Link to="/cart" className="cart-button" aria-label="Carrinho">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="9" cy="21" r="1"></circle>

@@ -19,13 +19,14 @@ export interface AuthState {
 }
 
 export interface SignUpData {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
   name: string;
 }
 
 export interface SignInData {
-  email: string;
+  identifier: string;
   password: string;
 }
 

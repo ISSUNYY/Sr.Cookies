@@ -1,16 +1,38 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { signUp, signInWithGoogle } from '../services/authService';
+import { signUpWithPhone, verifyPhoneOTP, signInWithGoogle } from '../services/authService';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
+  // OTP Verification state
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpLoading, setOtpLoading] = useState(false);
+
   const navigate = useNavigate();
+
+  // Simple mask for cell phone format (XX) XXXXX-XXXX
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    
+    // Apply formatting mask
+    if (value.length > 7) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+      value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+    setPhone(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,27 +41,31 @@ export default function SignupPage() {
     setSuccessMessage(null);
 
     try {
-      const result = await signUp({ name, email, password });
-      
-      if (result.needsConfirmation) {
-        // Email confirmation is required — show message
-        setSuccessMessage(
-          '✅ Conta criada com sucesso! Verifique seu e-mail para confirmar o cadastro antes de fazer login.'
-        );
-      } else if (result.session) {
-        // Auto-confirmed — redirect directly
-        navigate('/');
-      } else {
-        // Fallback: redirect to login
-        setSuccessMessage(
-          '✅ Conta criada! Faça login para continuar.'
-        );
-        setTimeout(() => navigate('/auth/login'), 2000);
-      }
+      await signUpWithPhone({ name, phone, password });
+      setShowOtpScreen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar conta. Tente novamente.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpLoading(true);
+    setOtpError(null);
+
+    try {
+      await verifyPhoneOTP(phone, otpCode);
+      setSuccessMessage('🎉 Celular verificado e conta ativada com sucesso! Redirecionando para o login...');
+      setShowOtpScreen(false);
+      setTimeout(() => {
+        navigate('/auth/login');
+      }, 2500);
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : 'Código incorreto. Verifique e tente novamente.');
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -54,6 +80,67 @@ export default function SignupPage() {
     }
   };
 
+  if (showOtpScreen) {
+    return (
+      <>
+        <div className="auth-header">
+          <h1>Verifique seu Celular 📱</h1>
+          <p>Enviamos um código de confirmação por SMS para <strong>{phone}</strong>.</p>
+        </div>
+
+        <form className="auth-form" onSubmit={handleVerifyOtp}>
+          {otpError && <div className="auth-error">{otpError}</div>}
+
+          <div className="form-group">
+            <label htmlFor="otpCode">Código de 6 dígitos</label>
+            <input
+              id="otpCode"
+              type="text"
+              className="form-input"
+              placeholder="Digite o código"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              required
+              style={{
+                textAlign: 'center',
+                fontSize: '1.25rem',
+                letterSpacing: '0.25em',
+                fontWeight: 'bold',
+              }}
+            />
+          </div>
+
+          <div style={{
+            background: 'rgba(173, 127, 96, 0.05)',
+            border: '1px dashed var(--color-primary-light, #AD7F60)',
+            color: 'var(--color-primary, #AD7F60)',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.75rem',
+            fontSize: '0.85rem',
+            lineHeight: '1.4',
+            marginBottom: '1rem',
+            textAlign: 'center',
+          }}>
+            💡 <strong>Modo de Teste:</strong> Digite o código padrão <strong>123456</strong> para confirmar instantaneamente de forma gratuita!
+          </div>
+
+          <button type="submit" className="btn-primary" disabled={otpLoading}>
+            {otpLoading ? (
+              <div className="ifood-loader-spinner"></div>
+            ) : (
+              'Confirmar Código'
+            )}
+          </button>
+        </form>
+
+        <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
+          Digitou o número errado? <button type="button" onClick={() => setShowOtpScreen(false)} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>Voltar e corrigir</button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="auth-header">
@@ -61,7 +148,84 @@ export default function SignupPage() {
         <p>Preencha os campos abaixo ou crie com sua conta social.</p>
       </div>
 
-      {/* Social Login Buttons at the top iFood style */}
+      {successMessage && (
+        <div className="auth-success" style={{
+          background: 'rgba(34, 197, 94, 0.1)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+          color: '#16a34a',
+          padding: '0.75rem 1rem',
+          borderRadius: '0.75rem',
+          fontSize: '0.875rem',
+          lineHeight: '1.5',
+          textAlign: 'center',
+          marginBottom: '1rem',
+        }}>
+          {successMessage}
+        </div>
+      )}
+
+      <form className="auth-form" onSubmit={handleSubmit}>
+        {error && <div className="auth-error">{error}</div>}
+
+        <div className="form-group">
+          <label htmlFor="name">Nome Completo</label>
+          <input
+            id="name"
+            type="text"
+            className="form-input"
+            placeholder="Seu nome completo"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="phone">Celular (com DDD)</label>
+          <input
+            id="phone"
+            type="tel"
+            className="form-input"
+            placeholder="(22) 99999-9999"
+            value={phone}
+            onChange={handlePhoneChange}
+            required
+            autoComplete="tel"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="password">Senha</label>
+          <input
+            id="password"
+            type="password"
+            className="form-input"
+            placeholder="Mínimo 6 caracteres"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem' }}>
+          {loading ? (
+            <div className="ifood-loader-spinner"></div>
+          ) : (
+            'Criar Conta com Celular'
+          )}
+        </button>
+      </form>
+
+      <div className="auth-divider">
+        <hr />
+        <span>ou cadastre-se com</span>
+        <hr />
+      </div>
+
+      {/* Social Login Buttons at the bottom */}
       <div className="auth-social" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <button 
           type="button" 
@@ -91,82 +255,7 @@ export default function SignupPage() {
         </button>
       </div>
 
-      <div className="auth-divider">
-        <hr />
-        <span>ou use seu e-mail</span>
-        <hr />
-      </div>
-
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error && <div className="auth-error">{error}</div>}
-        {successMessage && (
-          <div className="auth-success" style={{
-            background: 'rgba(34, 197, 94, 0.1)',
-            border: '1px solid rgba(34, 197, 94, 0.3)',
-            color: '#16a34a',
-            padding: '0.75rem 1rem',
-            borderRadius: '0.75rem',
-            fontSize: '0.875rem',
-            lineHeight: '1.5',
-            textAlign: 'center',
-          }}>
-            {successMessage}
-          </div>
-        )}
-
-        <div className="form-group">
-          <label htmlFor="name">Nome Completo</label>
-          <input
-            id="name"
-            type="text"
-            className="form-input"
-            placeholder="Seu nome completo"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoComplete="name"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="email">E-mail</label>
-          <input
-            id="email"
-            type="email"
-            className="form-input"
-            placeholder="seu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="password">Senha</label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            placeholder="Mínimo 6 caracteres"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete="new-password"
-          />
-        </div>
-
-        <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem' }}>
-          {loading ? (
-            <div className="ifood-loader-spinner"></div>
-          ) : (
-            'Criar Conta'
-          )}
-        </button>
-      </form>
-
-      <div className="auth-footer">
+      <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
         Já possui conta? <Link to="/auth/login">Fazer login</Link>
       </div>
     </>
