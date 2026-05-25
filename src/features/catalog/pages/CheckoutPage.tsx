@@ -767,7 +767,7 @@ export default function CheckoutPage() {
                   Você está sendo redirecionado para o Mercado Pago. Se a página de pagamento não abrir ou você precisar reabri-la, use o botão abaixo.
                 </p>
                 <p className="payment-instruction-text" style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: '0.35rem' }}>
-                  ⚠️ <strong>Dica:</strong> Se a tela de pagamento ficar em branco, certifique-se de desativar bloqueadores de anúncios (AdBlock) temporariamente para permitir a validação de segurança do Mercado Pago.
+                  <strong>Aviso:</strong> Caso a página de pagamento não carregue, certifique-se de desativar bloqueadores de anúncios (AdBlock) temporariamente para permitir a validação de segurança.
                 </p>
                 <div style={{ marginTop: '0.5rem' }}>
                   <a href={mpPreferenceLink} className="btn-gps" style={{ display: 'inline-flex', textDecoration: 'none' }}>

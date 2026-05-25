@@ -37,7 +37,7 @@ export default function RootLayout() {
           
           useCartStore.getState().clearCart();
           
-          setPaymentSuccessMessage('🍪 Seu pagamento foi aprovado! Redirecionando para o acompanhamento...');
+          setPaymentSuccessMessage('Pagamento aprovado. Redirecionando...');
           
           window.history.replaceState({}, document.title, window.location.pathname);
           
@@ -88,7 +88,7 @@ export default function RootLayout() {
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.18)'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.1)'}
                   >
-                    Painel Admin 👑
+                    Painel Admin
                   </Link>
                 )}
 

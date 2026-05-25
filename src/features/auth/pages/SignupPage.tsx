@@ -57,7 +57,7 @@ export default function SignupPage() {
 
     try {
       await verifyPhoneOTP(phone, otpCode, name, password);
-      setSuccessMessage('🎉 Celular verificado e conta ativada! Você está conectado(a) com sucesso.');
+      setSuccessMessage('Celular verificado e conta ativada com sucesso.');
       setShowOtpScreen(false);
       setTimeout(() => {
         navigate('/', { replace: true });
@@ -84,8 +84,8 @@ export default function SignupPage() {
     return (
       <>
         <div className="auth-header">
-          <h1>Verifique seu Celular 📱</h1>
-          <p>Enviamos um código de confirmação por SMS para <strong>{phone}</strong>.</p>
+          <h1>Confirmar número de celular</h1>
+          <p>Insira o código de confirmação enviado por SMS para <strong>{phone}</strong>.</p>
         </div>
 
         <form className="auth-form" onSubmit={handleVerifyOtp}>
@@ -122,7 +122,7 @@ export default function SignupPage() {
             marginBottom: '1rem',
             textAlign: 'center',
           }}>
-            💡 <strong>Modo de Teste:</strong> Digite o código padrão <strong>123456</strong> para confirmar instantaneamente de forma gratuita!
+            <strong>Modo de homologação:</strong> Utilize o código padrão <strong>123456</strong> para realizar testes locais de forma simplificada.
           </div>
 
           <button type="submit" className="btn-primary" disabled={otpLoading}>
