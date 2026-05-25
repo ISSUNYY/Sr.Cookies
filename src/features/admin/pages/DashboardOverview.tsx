@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getOrders, type Order } from '@/features/orders/services/orderService';
+import { getOrders, updateOrderStatus, type Order } from '@/features/orders/services/orderService';
 import { 
   getStoreSettings, 
   updateStoreSettings, 
   type StoreSettings 
 } from '@/features/admin/services/settingsService';
 import '../styles/admin.css';
+import '../styles/orders.css';
 
 export default function DashboardOverview() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -36,8 +37,32 @@ export default function DashboardOverview() {
         setIsLoading(false);
       }
     };
+    
     fetchOrdersAndSettings();
+    
+    // Poll for new active orders every 15 seconds so shop owners stay notified in real time
+    const interval = setInterval(async () => {
+      try {
+        const ordersData = await getOrders();
+        setOrders(ordersData);
+      } catch (err) {
+        console.error('[DashboardOverview] Error polling orders:', err);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      // Immediately reflect status update in the local orders list
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    } catch (error) {
+      console.error('[DashboardOverview] Failed to update status:', error);
+      alert('Erro ao atualizar status do pedido.');
+    }
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,13 +99,13 @@ export default function DashboardOverview() {
       setSettings(updated);
       
       setSettingsMessage({ 
-        text: 'Configurações de entrega salvas com sucesso no banco de dados!', 
+        text: 'Configuracoes de entrega salvas com sucesso no banco de dados!', 
         isError: false 
       });
       setTimeout(() => setSettingsMessage(null), 4000);
     } catch {
       setSettingsMessage({ 
-        text: 'Falha ao salvar configurações no banco de dados.', 
+        text: 'Falha ao salvar configuracoes no banco de dados.', 
         isError: true 
       });
     } finally {
@@ -88,13 +113,56 @@ export default function DashboardOverview() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch(status) {
+      case 'PENDING': return 'Pendente';
+      case 'PAID': return 'Confirmado';
+      case 'PREPARING': return 'Em Preparo';
+      case 'OUT_FOR_DELIVERY': return 'Em Rota';
+      case 'DELIVERED': return 'Entregue';
+      case 'CANCELLED': return 'Cancelado';
+      default: return status;
+    }
+  };
+
+  const getPaymentMethodLabel = (method?: string) => {
+    switch (method) {
+      case 'pix': return 'Pix';
+      case 'applepay': return 'Apple Pay';
+      case 'googlepay': return 'Google Pay';
+      case 'credito_app': return 'Credito Online';
+      case 'dinheiro': return 'Dinheiro';
+      case 'credito_entrega': return 'Credito na entrega';
+      case 'debito_entrega': return 'Debito na entrega';
+      default: return 'Cartao';
+    }
+  };
+
+  const getNextStatus = (currentStatus: string, paymentCategory?: string): { status: string; label: string } | null => {
+    switch (currentStatus) {
+      case 'PENDING':
+        if (paymentCategory === 'app') {
+          return { status: 'PREPARING', label: 'Confirmar & Iniciar Preparo' };
+        }
+        return { status: 'PAID', label: 'Confirmar Pagamento' };
+      case 'PAID': 
+        return { status: 'PREPARING', label: 'Iniciar Preparo' };
+      case 'PREPARING': 
+        return { status: 'OUT_FOR_DELIVERY', label: 'Despachar para Entrega' };
+      case 'OUT_FOR_DELIVERY': 
+        return { status: 'DELIVERED', label: 'Concluir Entrega' };
+      default: 
+        return null;
+    }
+  };
+
   const totalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
   const avgTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
 
   const stats = [
-    { title: 'Faturamento Mensal', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue), change: '+0.0%', isPositive: true, icon: '💰', color: 'blue' },
-    { title: 'Pedidos Concluídos', value: orders.filter(o => o.status === 'DELIVERED').length.toString(), change: '+0.0%', isPositive: true, icon: '🛍️', color: 'green' },
-    { title: 'Ticket Médio', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgTicket), change: '0.0%', isPositive: true, icon: '📈', color: 'orange' },
+    { title: 'Faturamento Mensal', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue), change: '+0.0%', isPositive: true },
+    { title: 'Pedidos Concluidos', value: orders.filter(o => o.status === 'DELIVERED').length.toString(), change: '+0.0%', isPositive: true },
+    { title: 'Ticket Medio', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgTicket), change: '0.0%', isPositive: true },
   ];
 
   const topProducts = [
@@ -112,26 +180,163 @@ export default function DashboardOverview() {
     );
   }
 
+  const activeOrders = orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED');
+
   return (
     <div className="dashboard-overview">
       <header className="dashboard-header">
-        <h1>Visão Geral</h1>
+        <h1>Visao Geral</h1>
         <p>Acompanhe o desempenho da sua loja hoje.</p>
       </header>
 
       <div className="stats-grid">
         {stats.map((stat, i) => (
-          <div key={i} className="stat-card">
-            <div className={`stat-icon ${stat.color}`}>
-              {stat.icon}
+          <div key={i} className="stat-card" style={{ borderLeft: '4px solid var(--color-primary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <div className="stat-title" style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {stat.title}
             </div>
-            <div className="stat-title">{stat.title}</div>
-            <div className="stat-value">{stat.value}</div>
-            <div className={`stat-change ${stat.isPositive ? 'positive' : 'negative'}`}>
-              {stat.isPositive ? '↑' : '↓'} {stat.change} vs mês anterior
+            <div className="stat-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', margin: '0.2rem 0' }}>
+              {stat.value}
+            </div>
+            <div className={`stat-change ${stat.isPositive ? 'positive' : 'negative'}`} style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+              {stat.isPositive ? '↑' : '↓'} {stat.change} vs mes anterior
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Pedidos em Aberto (Controle Rapido) */}
+      <div className="dashboard-card" style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            Pedidos em Aberto
+            <span style={{ 
+              fontSize: '0.78rem', 
+              padding: '0.2rem 0.6rem', 
+              backgroundColor: 'var(--color-primary)', 
+              color: 'white', 
+              borderRadius: '9999px',
+              fontWeight: 800,
+              verticalAlign: 'middle'
+            }}>
+              {activeOrders.length}
+            </span>
+          </h2>
+          <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+            Monitoramento de fila ativa em tempo real
+          </span>
+        </div>
+
+        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: '#faf9f6' }}>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Codigo</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Horario</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Produtos</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Observacao</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pagamento</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                <th style={{ padding: '0.75rem 1rem', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeOrders.map(order => {
+                const addressObj = order.shipping_address as {
+                  paymentCategory?: 'app' | 'delivery';
+                  paymentMethod?: string;
+                  street?: string;
+                  number?: string;
+                  neighborhood?: string;
+                  complement?: string;
+                  observations?: string;
+                  changeRequired?: string;
+                  changeForAmount?: string;
+                } | null;
+
+                const isPrepaid = addressObj?.paymentCategory === 'app';
+                const nextStep = getNextStatus(order.status, addressObj?.paymentCategory);
+                
+                const timeString = new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                return (
+                  <tr key={order.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '0.85rem 1rem', fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                      #{order.id.split('-')[0].toUpperCase()}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+                      {timeString}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--color-text)' }}>
+                      <strong style={{ display: 'block', fontWeight: 600 }}>{order.order_items?.[0] ? 'Cliente' : 'Cliente'}</strong>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Macaé, RJ</span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--color-text)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {order.order_items?.map(i => `${i.quantity}x ${i.products?.name || 'Cookie'}`).join(', ') || 'Sem itens'}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: addressObj?.observations ? '#b45309' : 'var(--color-text-muted)', fontStyle: addressObj?.observations ? 'italic' : 'normal' }}>
+                      {addressObj?.observations ? addressObj.observations : 'Nenhuma'}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontSize: '0.82rem' }}>
+                      <span className={`payment-cat-pill ${isPrepaid ? 'prepaid' : 'delivery'}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.35rem', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 800 }}>
+                        {isPrepaid ? 'Pago' : 'A cobrar'}
+                      </span>
+                      <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                        {getPaymentMethodLabel(addressObj?.paymentMethod)}
+                        {addressObj?.paymentMethod === 'dinheiro' && addressObj?.changeRequired === 'Sim' ? ` (Troco R$ ${addressObj.changeForAmount})` : ''}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span className={`status-badge badge-${order.status.toLowerCase() === 'out_for_delivery' ? 'delivery' : order.status.toLowerCase()}`} style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                        {getStatusLabel(order.status)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
+                        {nextStep ? (
+                          <button
+                            type="button"
+                            className="btn-advance-status"
+                            onClick={() => handleStatusChange(order.id, nextStep.status)}
+                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', fontWeight: 700 }}
+                          >
+                            {nextStep.label}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Concluido</span>
+                        )}
+                        
+                        <select
+                          className="status-select"
+                          aria-label="Acoes manuais de status"
+                          value={order.status}
+                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                          style={{ padding: '0.35rem', fontSize: '0.75rem', minWidth: '90px', borderRadius: '4px', border: '1px solid var(--color-border)', cursor: 'pointer' }}
+                        >
+                          <option value="PENDING">Pendente</option>
+                          <option value="PAID">Confirmado</option>
+                          <option value="PREPARING">Preparando</option>
+                          <option value="OUT_FOR_DELIVERY">Em Rota</option>
+                          <option value="DELIVERED">Entregue</option>
+                          <option value="CANCELLED">Cancelar</option>
+                        </select>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {activeOrders.length === 0 && (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>
+                    Nenhum pedido em aberto no momento. Excelente trabalho!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="dashboard-sections">
@@ -145,7 +350,7 @@ export default function DashboardOverview() {
                   <div style={{ position: 'absolute', bottom: 0, width: '100%', height: `${height * 0.7}%`, backgroundColor: 'var(--color-primary)', borderRadius: '4px 4px 0 0' }}></div>
                 </div>
                 <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][i]}
+                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'][i]}
                 </span>
               </div>
             ))}
@@ -154,14 +359,14 @@ export default function DashboardOverview() {
 
         {/* Dynamic Delivery Configuration Panel */}
         <div className="dashboard-card">
-          <h2>Configuração de Entrega</h2>
+          <h2>Configuracao de Entrega</h2>
           <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1.25rem' }}>
-            Defina o endereço da sua loja física e os coeficientes de cobrança por quilômetro (KM).
+            Defina o endereco da sua loja fisica e os coeficientes de cobranca por quilometro (KM).
           </p>
 
           <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="admin-form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Endereço Base da Loja (Em Macaé)</label>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Endereco Base da Loja (Em Macae)</label>
               <input 
                 required
                 type="text" 
@@ -175,7 +380,7 @@ export default function DashboardOverview() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="admin-form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Valor por Quilômetro (R$ / KM)</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Valor por Quilometro (R$ / KM)</label>
                 <input 
                   required
                   type="number" 
@@ -190,7 +395,7 @@ export default function DashboardOverview() {
               </div>
 
               <div className="admin-form-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Taxa Mínima de Entrega (R$)</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4b5563' }}>Taxa Minima de Entrega (R$)</label>
                 <input 
                   required
                   type="number" 
@@ -242,7 +447,7 @@ export default function DashboardOverview() {
                 gap: '0.5rem'
               }}
             >
-              {isSavingSettings ? 'Salvando...' : 'Salvar Configurações'}
+              {isSavingSettings ? 'Salvando...' : 'Salvar Configuracoes'}
             </button>
           </form>
         </div>

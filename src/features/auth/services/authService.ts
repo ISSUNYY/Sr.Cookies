@@ -1,7 +1,7 @@
 import { supabase } from '@shared/lib/supabase';
 import type { SignUpData, SignInData, Profile } from '../types';
 
-export async function signUp({ email, password, name }: SignUpData) {
+export async function signUp({ email, password, name, phone }: SignUpData) {
   const { data, error } = await supabase.auth.signUp({
     email: email || '',
     password,
@@ -12,6 +12,34 @@ export async function signUp({ email, password, name }: SignUpData) {
   });
 
   if (error) throw error;
+
+  // Sincronizar o telefone e o e-mail real na tabela de perfis públicos
+  if (data.user) {
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          phone: phone || null,
+          email: email || null,
+        })
+        .eq('id', data.user.id);
+        
+      if (updateError) {
+        // Fallback: se o perfil ainda não existir na trigger, fazemos upsert
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            name,
+            phone: phone || null,
+            email: email || null,
+          });
+      }
+    } catch (err) {
+      console.error('[signUp] Falha ao atualizar perfil com telefone/e-mail:', err);
+    }
+  }
 
   // Check if email confirmation is required
   const needsConfirmation = !data.session && data.user?.identities?.length === 0;
@@ -98,12 +126,37 @@ export async function signIn({ identifier, password }: SignInData) {
   
   let cleanIdentifier = identifier;
   if (!isEmail) {
-    // Convert phone format to matching dummy email format securely
+    // Se não for e-mail, limpamos o número de telefone
     const cleaned = identifier.replace(/\D/g, '');
     if (cleaned.length < 10) {
       throw new Error('Por favor, insira um celular válido ou e-mail.');
     }
-    cleanIdentifier = `phone_${cleaned}@srcookies.com`;
+    
+    // 1. Tentar buscar o e-mail real associado a este telefone no profiles
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('phone', identifier)
+      .maybeSingle();
+
+    let resolvedEmail = profile?.email;
+
+    if (!resolvedEmail) {
+      // Se não achou com a máscara, tenta buscar com o número limpo
+      const { data: profileClean } = await supabase
+        .from('profiles')
+        .select('email')
+        .like('phone', `%${cleaned}%`)
+        .maybeSingle();
+      resolvedEmail = profileClean?.email;
+    }
+
+    if (resolvedEmail) {
+      cleanIdentifier = resolvedEmail;
+    } else {
+      // 2. Fallback para contas legadas criadas com o formato de celular simulado
+      cleanIdentifier = `phone_${cleaned}@srcookies.com`;
+    }
   }
 
   // Sign in using email key

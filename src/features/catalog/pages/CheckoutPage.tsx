@@ -19,7 +19,7 @@ type PaymentMethod = 'applepay' | 'googlepay' | 'pix' | 'credito_app' | 'dinheir
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, profile, isLoading, isAuthenticated } = useAuth();
   const { items, getTotal, clearCart } = useCartStore();
 
   // Redirect guest users to login page automatically with checkout destination stored
@@ -40,6 +40,36 @@ export default function CheckoutPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [gpsMessage, setGpsMessage] = useState('');
   const [gpsError, setGpsError] = useState('');
+
+  const [phone, setPhone] = useState('');
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [createdOrderDetails, setCreatedOrderDetails] = useState<{ id: string; phone: string } | null>(null);
+
+  // Helper function to format phone numbers on load
+  const formatInitialPhone = (phoneStr: string | null | undefined): string => {
+    if (!phoneStr) return '';
+    let value = phoneStr.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    if (value.length > 7) {
+      return `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+    } else if (value.length > 2) {
+      return `(${value.slice(0, 2)}) ${value.slice(2)}`;
+    } else if (value.length > 0) {
+      return `(${value}`;
+    }
+    return '';
+  };
+
+
+
+  useEffect(() => {
+    if (profile?.phone) {
+      const formatted = formatInitialPhone(profile.phone);
+      Promise.resolve().then(() => {
+        setPhone(formatted);
+      });
+    }
+  }, [profile]);
 
   // Form states
   const [address, setAddress] = useState({
@@ -74,6 +104,7 @@ export default function CheckoutPage() {
   const [isWaitingMpPayment, setIsWaitingMpPayment] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [observations, setObservations] = useState('');
 
   // Load store settings on mount
   useEffect(() => {
@@ -266,6 +297,8 @@ export default function CheckoutPage() {
         city: 'Macaé',
         state: 'RJ',
         complement: address.complement,
+        observations: observations,
+        phone: phone,
         deliveryType: 'entrega', // Always delivery
         paymentCategory: paymentCategory,
         paymentMethod: paymentMethod,
@@ -288,9 +321,10 @@ export default function CheckoutPage() {
       setActiveOrderId(order.id);
 
       if (paymentCategory === 'delivery') {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
         clearCart();
-        navigate(`/track/${order.id}`);
+        setCreatedOrderDetails({ id: order.id, phone: phone.replace(/\D/g, '') });
+        setShowSuccessScreen(true);
+        setIsProcessing(false);
       } 
       else {
         const mappedItems = items.map(i => ({
@@ -321,7 +355,8 @@ export default function CheckoutPage() {
               const paymentId = Math.floor(1000000000 + Math.random() * 900000000);
               await simulateMpWebhookNotification(order.id, paymentId, 'approved');
               clearCart();
-              navigate(`/track/${order.id}`);
+              setCreatedOrderDetails({ id: order.id, phone: phone.replace(/\D/g, '') });
+              setShowSuccessScreen(true);
             } catch (err) {
               console.error('Failed to simulate offline payment redirect:', err);
             }
@@ -349,7 +384,8 @@ export default function CheckoutPage() {
       await simulateMpWebhookNotification(activeOrderId, paymentId, 'approved');
       
       clearCart();
-      navigate(`/track/${activeOrderId}`);
+      setCreatedOrderDetails({ id: activeOrderId, phone: phone.replace(/\D/g, '') });
+      setShowSuccessScreen(true);
     } catch {
       setErrorMsg('Falha ao registrar notificação de pagamento.');
     } finally {
@@ -360,6 +396,74 @@ export default function CheckoutPage() {
   const formattedAmount = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
+
+  if (showSuccessScreen && createdOrderDetails) {
+    const cleanPhone = createdOrderDetails.phone;
+    const orderId = createdOrderDetails.id;
+    const trackingUrl = `${window.location.origin}/track/${orderId}`;
+    
+    // Clean and professional message - no emojis!
+    const rawMessage = `Sr. Cookies\n\nSeu pedido foi confirmado e ja esta sendo preparado!\n\nAcompanhe a entrega em tempo real pelo link abaixo:\n${trackingUrl}\n\nObrigado pela sua preferencia!`;
+    const whatsappMessage = encodeURIComponent(rawMessage);
+    const whatsappLink = `https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${whatsappMessage}`;
+
+    return (
+      <div className="checkout-page success-screen-container">
+        <div className="success-card-premium">
+          <div className="success-icon-badge">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          
+          <h1 className="success-title">Pedido Confirmado</h1>
+          <p className="success-subtitle">
+            Seu pedido foi registrado com sucesso e a nossa cozinha ja iniciou o preparo dos seus cookies.
+          </p>
+
+          <div className="success-details-box">
+            <div className="success-detail-row">
+              <span className="detail-label">ID do Pedido</span>
+              <span className="detail-value">#{orderId.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div className="success-detail-row">
+              <span className="detail-label">WhatsApp de Contato</span>
+              <span className="detail-value">({cleanPhone.slice(0, 2)}) {cleanPhone.slice(2, 7)}-{cleanPhone.slice(7)}</span>
+            </div>
+          </div>
+
+          <div className="success-actions-container">
+            <a 
+              href={whatsappLink} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="btn-success-whatsapp"
+              onClick={() => {
+                // Navigate to tracking after opening WhatsApp in a new tab
+                setTimeout(() => {
+                  navigate(`/track/${orderId}`);
+                }, 1500);
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <span>Ativar Rastreamento no WhatsApp</span>
+            </a>
+
+            <button 
+              type="button" 
+              className="btn-success-track" 
+              onClick={() => navigate(`/track/${orderId}`)}
+            >
+              <span>Acompanhar sem WhatsApp</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="checkout-page">
@@ -471,6 +575,7 @@ export default function CheckoutPage() {
                   onChange={e => setAddress({...address, zipCode: e.target.value})} 
                 />
               </div>
+
               <div className="ifood-input-group full-width">
                 <label>Complemento / Ponto de Referência</label>
                 <input 
@@ -478,6 +583,27 @@ export default function CheckoutPage() {
                   placeholder="Apto, bloco, portão, etc." 
                   value={address.complement} 
                   onChange={e => setAddress({...address, complement: e.target.value})} 
+                />
+              </div>
+              <div className="ifood-input-group full-width" style={{ marginTop: '0.75rem' }}>
+                <label>Observações do Pedido (Opcional)</label>
+                <textarea 
+                  placeholder="Ex: sem açúcar, campainha quebrada, deixar com porteiro..." 
+                  value={observations} 
+                  onChange={e => setObservations(e.target.value)} 
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '0.75rem',
+                    border: '1px solid #e6dacb',
+                    borderRadius: '8px',
+                    fontFamily: 'inherit',
+                    fontSize: '0.92rem',
+                    resize: 'vertical',
+                    marginTop: '0.25rem',
+                    backgroundColor: 'var(--color-surface)',
+                    color: 'var(--color-text)'
+                  }}
                 />
               </div>
             </div>

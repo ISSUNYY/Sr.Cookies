@@ -8,11 +8,22 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: rgba(242, 237, 229, 0.9);
+  background-color: rgba(242, 237, 229, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
-  padding: 1rem 0;
+  padding: 1.2rem 0;
+  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.3s ease, 
+              box-shadow 0.3s ease,
+              border-color 0.3s ease;
+}
+
+.main-header.scrolled {
+  padding: 0.6rem 0;
+  background-color: rgba(242, 237, 229, 0.96);
+  box-shadow: 0 4px 20px -2px rgba(63, 45, 36, 0.08), 0 2px 6px -1px rgba(63, 45, 36, 0.04);
+  border-color: rgba(230, 218, 203, 0.6);
 }
 
 .header-container {
@@ -164,4 +175,162 @@ main {
     right: 16px;
     max-width: calc(100% - 32px);
   }
+}
+
+/* User Profile Menu Hamburger & Dropdown */
+.user-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              background-color 0.2s ease, 
+              color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+.user-menu-trigger:hover {
+  transform: scale(1.05);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.user-menu-trigger:active {
+  transform: scale(0.95);
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 240px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px -5px rgba(63, 45, 36, 0.15), 0 4px 12px -2px rgba(63, 45, 36, 0.05);
+  padding: 0.75rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transform-origin: top right;
+  animation: dropdownEnter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes dropdownEnter {
+  from {
+    transform: scale(0.92) translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.user-menu-header {
+  padding: 0.5rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.user-menu-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-email {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-divider {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: 0.25rem 0;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.user-menu-item svg {
+  flex-shrink: 0;
+  margin-right: 0.65rem;
+  color: var(--color-text-muted);
+  transition: color 0.2s ease;
+}
+
+.user-menu-item:hover {
+  background-color: rgba(173, 127, 96, 0.08);
+  color: var(--color-primary);
+}
+
+.user-menu-item:hover svg {
+  color: var(--color-primary);
+}
+
+.user-menu-item:active {
+  transform: translateX(2px);
+}
+
+.user-menu-item.admin {
+  color: var(--color-primary);
+  background-color: rgba(173, 127, 96, 0.04);
+}
+
+.user-menu-item.admin:hover {
+  background-color: rgba(173, 127, 96, 0.1);
+}
+
+.user-menu-item.admin svg {
+  color: var(--color-primary);
+}
+
+.user-menu-item.logout {
+  color: #e74c3c;
+}
+
+.user-menu-item.logout svg {
+  color: #e74c3c;
+}
+
+.user-menu-item.logout:hover {
+  background-color: rgba(231, 76, 60, 0.08);
+  color: #c0392b;
+}
+
+.user-menu-item.logout:hover svg {
+  color: #c0392b;
 }

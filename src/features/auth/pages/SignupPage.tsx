@@ -1,21 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { signUpWithPhone, verifyPhoneOTP, signInWithGoogle } from '../services/authService';
+import { signUp, signInWithGoogle } from '../services/authService';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // OTP Verification state
-  const [showOtpScreen, setShowOtpScreen] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpLoading, setOtpLoading] = useState(false);
-
   const navigate = useNavigate();
 
   // Simple mask for cell phone format (XX) XXXXX-XXXX
@@ -41,31 +36,20 @@ export default function SignupPage() {
     setSuccessMessage(null);
 
     try {
-      await signUpWithPhone({ name, phone, password });
-      setShowOtpScreen(true);
+      const { needsConfirmation } = await signUp({ email, password, name, phone });
+      
+      if (needsConfirmation) {
+        setSuccessMessage('Conta criada com sucesso! Por favor, confirme a ativação no link enviado para o seu e-mail.');
+      } else {
+        setSuccessMessage('Conta criada com sucesso! Redirecionando...');
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 1500);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar conta. Tente novamente.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpLoading(true);
-    setOtpError(null);
-
-    try {
-      await verifyPhoneOTP(phone, otpCode, name, password);
-      setSuccessMessage('Celular verificado e conta ativada com sucesso.');
-      setShowOtpScreen(false);
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 1500);
-    } catch (err) {
-      setOtpError(err instanceof Error ? err.message : 'Código incorreto. Verifique e tente novamente.');
-    } finally {
-      setOtpLoading(false);
     }
   };
 
@@ -80,72 +64,11 @@ export default function SignupPage() {
     }
   };
 
-  if (showOtpScreen) {
-    return (
-      <>
-        <div className="auth-header">
-          <h1>Confirmar número de celular</h1>
-          <p>Insira o código de confirmação enviado por SMS para <strong>{phone}</strong>.</p>
-        </div>
-
-        <form className="auth-form" onSubmit={handleVerifyOtp}>
-          {otpError && <div className="auth-error">{otpError}</div>}
-
-          <div className="form-group">
-            <label htmlFor="otpCode">Código de 6 dígitos</label>
-            <input
-              id="otpCode"
-              type="text"
-              className="form-input"
-              placeholder="Digite o código"
-              maxLength={6}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-              required
-              style={{
-                textAlign: 'center',
-                fontSize: '1.25rem',
-                letterSpacing: '0.25em',
-                fontWeight: 'bold',
-              }}
-            />
-          </div>
-
-          <div style={{
-            background: 'rgba(173, 127, 96, 0.05)',
-            border: '1px dashed var(--color-primary-light, #AD7F60)',
-            color: 'var(--color-primary, #AD7F60)',
-            padding: '0.75rem 1rem',
-            borderRadius: '0.75rem',
-            fontSize: '0.85rem',
-            lineHeight: '1.4',
-            marginBottom: '1rem',
-            textAlign: 'center',
-          }}>
-            <strong>Modo de homologação:</strong> Utilize o código padrão <strong>123456</strong> para realizar testes locais de forma simplificada.
-          </div>
-
-          <button type="submit" className="btn-primary" disabled={otpLoading}>
-            {otpLoading ? (
-              <div className="ifood-loader-spinner"></div>
-            ) : (
-              'Confirmar Código'
-            )}
-          </button>
-        </form>
-
-        <div className="auth-footer" style={{ marginTop: '1.25rem' }}>
-          Digitou o número errado? <button type="button" onClick={() => setShowOtpScreen(false)} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>Voltar e corrigir</button>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <div className="auth-header">
         <h1>Cadastre-se e ganhe frete grátis!</h1>
-        <p>Preencha os campos abaixo ou crie com sua conta social.</p>
+        <p>Preencha os campos abaixo para criar sua conta.</p>
       </div>
 
       {successMessage && (
@@ -182,6 +105,20 @@ export default function SignupPage() {
         </div>
 
         <div className="form-group">
+          <label htmlFor="email">E-mail</label>
+          <input
+            id="email"
+            type="email"
+            className="form-input"
+            placeholder="seu.email@exemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="form-group">
           <label htmlFor="phone">Celular (com DDD)</label>
           <input
             id="phone"
@@ -214,7 +151,7 @@ export default function SignupPage() {
           {loading ? (
             <div className="ifood-loader-spinner"></div>
           ) : (
-            'Criar Conta com Celular'
+            'Criar Conta'
           )}
         </button>
       </form>

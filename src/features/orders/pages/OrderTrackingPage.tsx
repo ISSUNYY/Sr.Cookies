@@ -134,9 +134,9 @@ export default function OrderTrackingPage() {
   // Build WhatsApp share link
   const trackingUrl = `${window.location.origin}/track/${order.id}`;
   const whatsappMessage = encodeURIComponent(
-    `🍪 *Sr. Cookies*\n\nAcompanhe seu pedido em tempo real:\n👉 ${trackingUrl}\n\nObrigado por pedir conosco! ❤️`
+    `*Sr. Cookies*\n\nSeu pedido foi confirmado!\n\nAcompanhe a entrega em tempo real pelo link abaixo:\n${trackingUrl}\n\nObrigado pela sua preferencia!`
   );
-  const customerPhone = shippingAddr?.customerPhone as string | undefined;
+  const customerPhone = (shippingAddr?.phone || shippingAddr?.customerPhone) as string | undefined;
   const whatsappLink = customerPhone
     ? `https://api.whatsapp.com/send?phone=55${customerPhone.replace(/\D/g, '')}&text=${whatsappMessage}`
     : `https://api.whatsapp.com/send?text=${whatsappMessage}`;

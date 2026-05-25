@@ -12,6 +12,10 @@ export default function RootLayout() {
   const items = useCartStore(state => state.items);
   const cartItemsCount = items.reduce((total, item) => total + item.quantity, 0);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
+  
+  // Header scrolled state & User menu toggle state
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -21,6 +25,23 @@ export default function RootLayout() {
       console.error('[RootLayout] Error signing out:', err);
     }
   };
+
+  // Scroll listener for sticky header
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Click-outside listener to close the user menu dropdown
+  useEffect(() => {
+    if (!showMenu) return;
+    const closeMenu = () => setShowMenu(false);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, [showMenu]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -57,59 +78,76 @@ export default function RootLayout() {
 
   return (
     <div className="root-layout">
-      <header className="main-header">
+      <header className={`main-header ${isScrolled ? 'scrolled' : ''}`}>
         <div className="header-container">
           <Link to="/" className="header-logo">
             <img src="/images/Logo.png" alt="Sr. Cookies" />
           </Link>
           
-          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div className="header-actions">
             {isAuthenticated ? (
-              <div className="user-profile-header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span className="welcome-text" style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                  Olá, <strong style={{ color: 'var(--color-text)' }}>{profile?.name || user?.user_metadata?.name || 'Cliente'}</strong>
-                </span>
-                
-                {profile?.role === 'admin' && (
-                  <Link 
-                    to="/admin" 
-                    className="admin-badge-nav" 
-                    style={{
-                      background: 'rgba(173, 127, 96, 0.1)',
-                      border: '1px solid rgba(173, 127, 96, 0.3)',
-                      color: 'var(--color-primary)',
-                      padding: '0.25rem 0.6rem',
-                      borderRadius: '20px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      textDecoration: 'none',
-                      transition: 'background-color 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.18)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(173, 127, 96, 0.1)'}
-                  >
-                    Painel Admin
-                  </Link>
-                )}
-
+              <div className="user-menu-container">
                 <button 
-                  onClick={handleLogout} 
-                  className="logout-button"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#e74c3c',
-                    fontSize: '0.88rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    padding: '0.25rem 0.5rem',
-                    transition: 'opacity 0.2s ease',
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(!showMenu);
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  className="user-menu-trigger"
+                  aria-label="Menu do usuário"
+                  aria-expanded={showMenu}
                 >
-                  Sair
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                  </svg>
                 </button>
+
+                {showMenu && (
+                  <div className="user-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <div className="user-menu-header">
+                      <span className="user-menu-name">
+                        Olá, {profile?.name || user?.user_metadata?.name || 'Cliente'}
+                      </span>
+                      <span className="user-menu-email">
+                        {user?.email?.includes('@srcookies.com') ? profile?.phone || 'Cliente Autenticado' : user?.email}
+                      </span>
+                    </div>
+                    
+                    <div className="user-menu-divider" />
+                    
+                    {profile?.role === 'admin' && (
+                      <Link 
+                        to="/admin" 
+                        className="user-menu-item admin"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="9"></rect>
+                          <rect x="14" y="3" width="7" height="5"></rect>
+                          <rect x="14" y="12" width="7" height="9"></rect>
+                          <rect x="3" y="16" width="7" height="5"></rect>
+                        </svg>
+                        Painel Admin
+                      </Link>
+                    )}
+
+                    <button 
+                      onClick={() => {
+                        setShowMenu(false);
+                        handleLogout();
+                      }} 
+                      className="user-menu-item logout"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                      </svg>
+                      Sair
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <Link to="/auth/login" className="login-link">Entrar</Link>
