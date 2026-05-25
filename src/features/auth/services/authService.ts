@@ -2,6 +2,35 @@ import { supabase } from '@shared/lib/supabase';
 import type { SignUpData, SignInData, Profile } from '../types';
 
 export async function signUp({ email, password, name, phone }: SignUpData) {
+  if (phone) {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      throw new Error('Por favor, insira um celular válido com DDD.');
+    }
+
+    // Check if another profile already has this phone number
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone', phone)
+      .maybeSingle();
+
+    let isDuplicate = !!existingProfile;
+
+    if (!isDuplicate) {
+      const { data: existingProfileClean } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('phone', `%${cleaned}%`)
+        .maybeSingle();
+      isDuplicate = !!existingProfileClean;
+    }
+
+    if (isDuplicate) {
+      throw new Error('Este número de celular já está cadastrado em outra conta.');
+    }
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: email || '',
     password,
@@ -15,6 +44,7 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
 
   // Sincronizar o telefone e o e-mail real na tabela de perfis públicos
   if (data.user) {
+    const phoneCode = Math.floor(1000 + Math.random() * 9000).toString();
     try {
       const { error: updateError } = await supabase
         .from('profiles')
@@ -22,6 +52,8 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
           name,
           phone: phone || null,
           email: email || null,
+          phone_verified: false,
+          phone_verification_code: phoneCode,
         })
         .eq('id', data.user.id);
         
@@ -34,6 +66,8 @@ export async function signUp({ email, password, name, phone }: SignUpData) {
             name,
             phone: phone || null,
             email: email || null,
+            phone_verified: false,
+            phone_verification_code: phoneCode,
           });
       }
     } catch (err) {
@@ -52,6 +86,28 @@ export async function signUpWithPhone({ name, phone, password }: { name: string;
   const cleanedPhone = phone.replace(/\D/g, '');
   if (cleanedPhone.length < 10) {
     throw new Error('Por favor, insira um celular válido com DDD.');
+  }
+
+  // Pre-check if phone is already registered in profiles
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  let isDuplicate = !!existingProfile;
+
+  if (!isDuplicate) {
+    const { data: existingProfileClean } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('phone', `%${cleanedPhone}%`)
+      .maybeSingle();
+    isDuplicate = !!existingProfileClean;
+  }
+
+  if (isDuplicate) {
+    throw new Error('Este número de celular já está cadastrado em outra conta.');
   }
 
   // Create a secure, unique dummy email format based on the phone number
@@ -221,15 +277,83 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
 
 export async function updateProfile(
   userId: string,
-  updates: Partial<Pick<Profile, 'name' | 'phone'>>
+  updates: Partial<Profile>
 ) {
+  let finalUpdates = { ...updates };
+
+  if (updates.phone !== undefined) {
+    const phone = updates.phone;
+    if (phone) {
+      const cleaned = phone.replace(/\D/g, '');
+      if (cleaned.length < 10) {
+        throw new Error('Por favor, insira um celular válido com DDD.');
+      }
+
+      // Se o telefone estiver sendo alterado de fato
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('phone, phone_verified')
+        .eq('id', userId)
+        .single();
+
+      const currentCleaned = currentProfile?.phone ? currentProfile.phone.replace(/\D/g, '') : '';
+
+      if (cleaned !== currentCleaned || !currentProfile?.phone_verified) {
+        // Verificar se outro usuário já usa este telefone
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', phone)
+          .neq('id', userId)
+          .maybeSingle();
+
+        let isDuplicate = !!existingProfile;
+
+        if (!isDuplicate) {
+          const { data: existingProfileClean } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('phone', `%${cleaned}%`)
+            .neq('id', userId)
+            .maybeSingle();
+          isDuplicate = !!existingProfileClean;
+        }
+
+        if (isDuplicate) {
+          throw new Error('Este número de celular já está cadastrado em outra conta.');
+        }
+
+        // Se o update não estiver explicitamente aprovando, gera código de verificação
+        if (updates.phone_verified !== true) {
+          const phoneCode = Math.floor(1000 + Math.random() * 9000).toString();
+          finalUpdates = {
+            ...finalUpdates,
+            phone_verified: false,
+            phone_verification_code: phoneCode
+          };
+        }
+      }
+    } else {
+      finalUpdates = {
+        ...finalUpdates,
+        phone_verified: false,
+        phone_verification_code: null
+      };
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
-    .update(updates)
+    .update(finalUpdates)
     .eq('id', userId)
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505' || error.message?.includes('profiles_phone_unique')) {
+      throw new Error('Este número de celular já está em uso por outra conta.');
+    }
+    throw error;
+  }
   return data as Profile;
 }

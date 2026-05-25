@@ -5,6 +5,9 @@ export interface Profile {
   id: string;
   name: string;
   phone: string | null;
+  email?: string | null;
+  phone_verified?: boolean;
+  phone_verification_code?: string | null;
   role?: string;
   created_at: string;
   updated_at: string;

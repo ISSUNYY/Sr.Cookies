@@ -1,0 +1,17 @@
+{
+  "name": "srcookies-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp reverse validation listener for Sr. Cookies",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.2",
+    "@whiskeysockets/baileys": "^6.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
