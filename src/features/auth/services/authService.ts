@@ -7,11 +7,17 @@ export async function signUp({ email, password, name }: SignUpData) {
     password,
     options: {
       data: { name },
+      emailRedirectTo: `${window.location.origin}/auth/login`,
     },
   });
 
   if (error) throw error;
-  return data;
+
+  // Check if email confirmation is required
+  // When confirm email is ON: session will be null, user.identities will be empty
+  const needsConfirmation = !data.session && data.user?.identities?.length === 0;
+  
+  return { ...data, needsConfirmation };
 }
 
 export async function signIn({ email, password }: SignInData) {

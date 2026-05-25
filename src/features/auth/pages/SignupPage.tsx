@@ -8,6 +8,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const navigate = useNavigate();
 
@@ -15,10 +16,26 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      await signUp({ name, email, password });
-      navigate('/');
+      const result = await signUp({ name, email, password });
+      
+      if (result.needsConfirmation) {
+        // Email confirmation is required — show message
+        setSuccessMessage(
+          '✅ Conta criada com sucesso! Verifique seu e-mail para confirmar o cadastro antes de fazer login.'
+        );
+      } else if (result.session) {
+        // Auto-confirmed — redirect directly
+        navigate('/');
+      } else {
+        // Fallback: redirect to login
+        setSuccessMessage(
+          '✅ Conta criada! Faça login para continuar.'
+        );
+        setTimeout(() => navigate('/auth/login'), 2000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar conta. Tente novamente.');
     } finally {
@@ -82,6 +99,20 @@ export default function SignupPage() {
 
       <form className="auth-form" onSubmit={handleSubmit}>
         {error && <div className="auth-error">{error}</div>}
+        {successMessage && (
+          <div className="auth-success" style={{
+            background: 'rgba(34, 197, 94, 0.1)',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            color: '#16a34a',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.75rem',
+            fontSize: '0.875rem',
+            lineHeight: '1.5',
+            textAlign: 'center',
+          }}>
+            {successMessage}
+          </div>
+        )}
 
         <div className="form-group">
           <label htmlFor="name">Nome Completo</label>

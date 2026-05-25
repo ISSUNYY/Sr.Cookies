@@ -98,7 +98,18 @@ export default function OrdersManagement() {
             <tbody>
               {orders.map(order => {
                 const isExpanded = !!expandedOrders[order.id];
-                const addressObj = order.shipping_address as any;
+                const addressObj = order.shipping_address as {
+                  paymentMethod?: string;
+                  street?: string;
+                  number?: string;
+                  neighborhood?: string;
+                  zipCode?: string;
+                  complement?: string;
+                  deliveryDistanceKm?: number;
+                  deliveryFeeCharged?: number;
+                  changeRequired?: string;
+                  changeForAmount?: string;
+                } | null;
                 
                 return (
                   <tr key={order.id} style={{ borderBottom: isExpanded ? 'none' : '1px solid #e5e7eb' }}>
@@ -146,7 +157,18 @@ export default function OrdersManagement() {
               {orders.map(order => {
                 const isExpanded = !!expandedOrders[order.id];
                 if (!isExpanded) return null;
-                const addressObj = order.shipping_address as any;
+                const addressObj = order.shipping_address as {
+                  paymentMethod?: string;
+                  street?: string;
+                  number?: string;
+                  neighborhood?: string;
+                  zipCode?: string;
+                  complement?: string;
+                  deliveryDistanceKm?: number;
+                  deliveryFeeCharged?: number;
+                  changeRequired?: string;
+                  changeForAmount?: string;
+                } | null;
                 
                 return (
                   <tr key={`${order.id}-details`} style={{ backgroundColor: '#fdfdfd' }}>
