@@ -29,24 +29,36 @@ export async function signUpWithPhone({ name, phone, password }: { name: string;
   // Create a secure, unique dummy email format based on the phone number
   const dummyEmail = `phone_${cleanedPhone}@srcookies.com`;
 
-  // Register in Supabase using the dummy email (which is always enabled on all Supabase projects!)
-  const { data, error } = await supabase.auth.signUp({
-    email: dummyEmail,
-    password,
-    options: {
-      data: { name },
-    },
-  });
+  try {
+    // Register in Supabase using the dummy email (which is always enabled on all Supabase projects!)
+    const { data, error } = await supabase.auth.signUp({
+      email: dummyEmail,
+      password,
+      options: {
+        data: { name },
+      },
+    });
 
-  if (error) {
-    // If the email is already in use, it means this phone is already registered!
-    if (error.message.includes('already registered') || error.message.includes('already exists')) {
-      throw new Error('Este número de celular já está cadastrado.');
+    if (error) throw error;
+    return data;
+  } catch (error: unknown) {
+    const err = error as Error;
+    const msg = err.message || '';
+    
+    // Intercept security Rate Limit errors from Supabase
+    if (msg.includes('rate limit') || msg.includes('limit exceeded') || msg.includes('Too Many Requests')) {
+      throw new Error(
+        '⚠️ Limite de segurança do Supabase excedido (máximo de 3 cadastros por hora por IP). Para testar livremente: acesse seu Supabase Dashboard -> Settings -> Authentication -> Rate Limits e aumente o limite de Signups, ou aguarde alguns minutos.',
+        { cause: error }
+      );
     }
+    
+    if (msg.includes('already registered') || msg.includes('already exists')) {
+      throw new Error('Este número de celular já está cadastrado.', { cause: error });
+    }
+    
     throw error;
   }
-  
-  return data;
 }
 
 export async function verifyPhoneOTP(phone: string, token: string, name: string, password: string) {
