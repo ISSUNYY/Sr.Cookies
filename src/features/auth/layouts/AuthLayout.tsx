@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router';
+import { Link, Outlet } from 'react-router';
 import './auth.css';
 
 export default function AuthLayout() {
@@ -6,7 +6,9 @@ export default function AuthLayout() {
     <div className="auth-container">
       <div className="auth-left">
         <div className="auth-brand">
-          <img src="/images/Logo.png" alt="Sr. Cookies" className="auth-logo" />
+          <Link to="/">
+            <img src="/images/Logo.png" alt="Sr. Cookies" className="auth-logo" style={{ cursor: 'pointer' }} />
+          </Link>
         </div>
         <div className="auth-content">
           <Outlet />
